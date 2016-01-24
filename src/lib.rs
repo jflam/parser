@@ -45,6 +45,7 @@ pub extern fn parse(cstr_path: *const c_char) {
 
 #[no_mangle]
 pub extern fn call_me_back(f_ptr: extern fn(x: i32)) {
+//    assert!(!f_ptr.is_null()); how test for null-ness here?
     f_ptr(42);
 }
 
@@ -80,7 +81,7 @@ pub extern fn sum_float_array(array_ptr: *const c_double, len: size_t) -> c_doub
 }
 
 #[no_mangle]
-pub extern fn mutate_numpy_array(array_ptr: *mut c_double, len: size_t) -> uint32_t {
+pub extern fn mutate_numpy_array(array_ptr: *mut c_double, len: size_t) {
 
     // Note that the numbers reference must be mut as well, and note the &mut reference!
     let mut numbers: &mut [c_double] = unsafe {
@@ -94,11 +95,40 @@ pub extern fn mutate_numpy_array(array_ptr: *mut c_double, len: size_t) -> uint3
         numbers[i] = 2.0;
         println!("number {}", numbers[i]);
     };
-
-    0 as uint32_t
 }
 
-// Next thing to implement is here
-// http://stackoverflow.com/questions/29182843/pass-a-c-array-to-a-rust-function
-pub extern fn fill_array(f_ptr: extern fn(x: i32) -> i64) {
+#[no_mangle] 
+pub extern fn get_double_from_python(f_ptr: extern fn(number: *mut c_double)) -> f64 {
+//    assert!(!f_ptr.is_null()); how test for nullness here?
+
+    let mut number: f64 = 0.0;
+    f_ptr(&mut number);
+    println!("this is what I got from python: {}", number);
+    number
 }
+
+/*
+#[no_mangle]
+pub extern fn fill_array(f_ptr: extern fn(x: i32, array_ptr: *mut c_double)) {
+
+    // Ask Python to allocate an array with 4 elements
+    let len: usize = 4;
+    let mut array_ptr: *mut c_double = ptr::null_mut();
+    let mut parray_ptr = &mut array_ptr as &mut *mut c_double;
+    f_ptr(4, parray_ptr);
+    //let mut array_ptr = f_ptr(4);
+    //println!("got a ptr: ");
+    let mut numbers: &mut [c_double] = unsafe {
+        assert!(!array_ptr.is_null());
+
+        slice::from_raw_parts_mut(array_ptr, len)
+    };
+
+    println!("before iteration");
+    for i in 0..len {
+        numbers[i] = 42.0;
+        println!("number = {}", numbers[i]);
+    }
+}
+
+*/

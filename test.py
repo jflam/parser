@@ -1,5 +1,5 @@
 from ctypes import cdll
-from ctypes import CFUNCTYPE, c_int, c_uint32, c_size_t, POINTER, c_long, c_double, c_void_p
+from ctypes import CFUNCTYPE, c_int, c_uint32, c_size_t, POINTER, c_long, c_double, c_void_p, py_object
 import numpy as N
 
 lib = cdll.LoadLibrary("c:/users/jflam/src/rust/parser/target/debug/parser.dll")
@@ -33,12 +33,14 @@ print("calling rust ...")
 lib.call_me_back(CALLBACK(callback))
 print("done!");
 
+# Passing native Python lists across the FFI only works for in-parameters only
 # More complex call into a rust function passing an array rust function compute the sum
 
 lib.sum_array.restype = c_uint32
 lib.sum_array.argtypes = (POINTER(c_uint32), c_size_t)
 
 def sum_array(numbers):
+    # Note that this does a copy of the original data
     buf_type = c_uint32 * len(numbers)  # compute size
     buf = buf_type(*numbers)
     return lib.sum_array(buf, len(numbers))
@@ -49,6 +51,7 @@ lib.sum_float_array.restype = c_double
 lib.sum_float_array.argtypes = (POINTER(c_double), c_size_t)
 
 def sum_float_array(numbers):
+    # Note that this does a copy of the original data
     buf_type = c_double * len(numbers)
     buf = buf_type(*numbers)
     return lib.sum_float_array(buf, len(numbers))
@@ -60,7 +63,7 @@ print("sum of random 1000 numbers in numpy array: {}",
 # Now let's see if we can pass a mutable array to rust and have it change on the
 # other side
 
-lib.mutate_numpy_array.restype = c_uint32
+lib.mutate_numpy_array.restype = None
 lib.mutate_numpy_array.argtypes = (POINTER(c_double), c_size_t)
 
 numpy_array = N.zeros(4)
@@ -72,6 +75,20 @@ numpy_array[3] = 4
 print("original array: {}".format(numpy_array))
 lib.mutate_numpy_array(numpy_array.ctypes.data_as(POINTER(c_double)), len(numpy_array))
 print("mutated array: {}".format(numpy_array))
+
+# Call a function which calls a callback in Python that explicitly returns a
+# double as an out parameter
+
+def callback_double(p_double):
+    p_double[0] = 42
+    print("called from rust and trying to return 42")
+
+CALLBACK_DOUBLE = CFUNCTYPE(None, POINTER(c_double))
+
+lib.get_double_from_python.restype = c_double
+lib.get_double_from_python.argtypes = [CALLBACK_DOUBLE]
+
+print("got {} from python via rust!".format(lib.get_double_from_python(CALLBACK_DOUBLE(callback_double))))
 
 # More sophisticated callback where I dynamically allocate a numpy array in the
 # callback function that Rust will fill in for me
@@ -86,11 +103,12 @@ g_array = None
 # dictioary where multiple allocations could happen and we use a cookie to
 # lookup the correct array. For now, there is a single global.
 
-def allocate(length):
-    g_array = N.zeros(length, 'i4')
-    ptr = x.ctypes.data_as(c_void_p).value
-    print("address of pointer returned to rust is {}".format(hex(ptr)))
-    return ptr
+def allocate(length, ppResult):
+    g_array = N.zeros(length)
+    ppResult.contents = g_array.ctypes.data_as(POINTER(c_double))
+    #print(g_array)
+    #print("here in allocate")
+    #return g_array.ctypes.data_as(POINTER(c_double))
 
 # This is the magic that I want to make work. get_array will call back into
 # Python to the allocate() function defined above to allocate a NumPy array
@@ -100,10 +118,15 @@ def allocate(length):
 # that array. This will be the basis for the high-speed parser that I will
 # implement later in Rust.
 
-ALLOCATOR = CFUNCTYPE(c_long, c_int)
+# TODO: this doesn't work. I can't seem to return a pointer type from a callback
+# function in ctypes. Seems like a strange limitation. Do I need out params?
+
+ALLOCATOR = CFUNCTYPE(None, POINTER(POINTER(c_double)))
+
+#ALLOCATOR = CFUNCTYPE(c_void_p, c_int)
 #lib.fill_array.restype = None
 #lib.fill_array.argtypes = [ALLOCATOR]
 
-# lib.fill_array(ALLOCATOR(allocate)) 
-# print("done")
+#lib.fill_array(ALLOCATOR(allocate)) 
+print("done")
 #print("and the total computed using numpy is {}".format(g_array.sum()))
