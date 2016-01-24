@@ -4,6 +4,7 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::path::Path;
 use std::error::Error;
+use std::ptr;
 use std::slice;
 
 extern crate libc;
@@ -107,28 +108,28 @@ pub extern fn get_double_from_python(f_ptr: extern fn(number: *mut c_double)) ->
     number
 }
 
-/*
 #[no_mangle]
-pub extern fn fill_array(f_ptr: extern fn(x: i32, array_ptr: *mut c_double)) {
+pub extern fn fill_array(f_ptr: extern fn(x: i32, array_ptr: *mut *mut c_double)) {
+
+    println!("in fill_array");
 
     // Ask Python to allocate an array with 4 elements
     let len: usize = 4;
     let mut array_ptr: *mut c_double = ptr::null_mut();
-    let mut parray_ptr = &mut array_ptr as &mut *mut c_double;
-    f_ptr(4, parray_ptr);
-    //let mut array_ptr = f_ptr(4);
-    //println!("got a ptr: ");
+    f_ptr(4, &mut array_ptr);
+
+    println!("after calling to python");
+
     let mut numbers: &mut [c_double] = unsafe {
-        assert!(!array_ptr.is_null());
+        assert!(!(array_ptr).is_null());
 
         slice::from_raw_parts_mut(array_ptr, len)
     };
 
     println!("before iteration");
     for i in 0..len {
+        println!("before number = {}", numbers[i]);
         numbers[i] = 42.0;
         println!("number = {}", numbers[i]);
     }
 }
-
-*/

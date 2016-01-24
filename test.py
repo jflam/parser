@@ -77,7 +77,8 @@ lib.mutate_numpy_array(numpy_array.ctypes.data_as(POINTER(c_double)), len(numpy_
 print("mutated array: {}".format(numpy_array))
 
 # Call a function which calls a callback in Python that explicitly returns a
-# double as an out parameter
+# double as an out parameter. Note the pointer dereference semantics in this
+# type.
 
 def callback_double(p_double):
     p_double[0] = 42
@@ -88,7 +89,8 @@ CALLBACK_DOUBLE = CFUNCTYPE(None, POINTER(c_double))
 lib.get_double_from_python.restype = c_double
 lib.get_double_from_python.argtypes = [CALLBACK_DOUBLE]
 
-print("got {} from python via rust!".format(lib.get_double_from_python(CALLBACK_DOUBLE(callback_double))))
+result = lib.get_double_from_python(CALLBACK_DOUBLE(callback_double))
+print("got {} back from python via rust!".format(result))
 
 # More sophisticated callback where I dynamically allocate a numpy array in the
 # callback function that Rust will fill in for me
@@ -96,37 +98,31 @@ print("got {} from python via rust!".format(lib.get_double_from_python(CALLBACK_
 # This is a global scoped reference that will hold onto the allocated array
 g_array = None
 
-# This is the allocator function that will allocate a function pointer and
+# This is the allocator function that will allocate a NumPy array and
 # return it to rust, where the array will be filled with data and returned 
 # to Python. Note that this function has an important side-effect, it 
-# stores the allocated array in g_results (in the future we can turn this into a
+# stores the allocated array in g_results. In the future we can turn this into a
 # dictioary where multiple allocations could happen and we use a cookie to
 # lookup the correct array. For now, there is a single global.
 
 def allocate(length, ppResult):
+    global g_array
     g_array = N.zeros(length)
-    ppResult.contents = g_array.ctypes.data_as(POINTER(c_double))
-    #print(g_array)
-    #print("here in allocate")
-    #return g_array.ctypes.data_as(POINTER(c_double))
+    ppResult[0] = g_array.ctypes.data_as(POINTER(c_double))
+    print("here in allocate")
 
-# This is the magic that I want to make work. get_array will call back into
-# Python to the allocate() function defined above to allocate a NumPy array
-# of sufficient size and fill that array with elements. The get_array() function
-# will return that array back to Python, where it will be treated as a NumPy
-# array and we can use the hardware accelerated functions to compute against
-# that array. This will be the basis for the high-speed parser that I will
-# implement later in Rust.
+# fill_array will call back into Python to the allocate() function defined 
+# above to allocate a NumPy array of sufficient size and fill that array with 
+# elements. The fill_array() function will return that array back to Python, 
+# where it will be treated as a NumPy array and we can use the hardware 
+# accelerated functions to compute against that array. This will be the basis 
+# for the high-speed parser that I will implement later in Rust.
 
-# TODO: this doesn't work. I can't seem to return a pointer type from a callback
-# function in ctypes. Seems like a strange limitation. Do I need out params?
+ALLOCATOR = CFUNCTYPE(None, c_int, POINTER(POINTER(c_double)))
 
-ALLOCATOR = CFUNCTYPE(None, POINTER(POINTER(c_double)))
+lib.fill_array.restype = None
+lib.fill_array.argtypes = [ALLOCATOR]
 
-#ALLOCATOR = CFUNCTYPE(c_void_p, c_int)
-#lib.fill_array.restype = None
-#lib.fill_array.argtypes = [ALLOCATOR]
-
-#lib.fill_array(ALLOCATOR(allocate)) 
-print("done")
-#print("and the total computed using numpy is {}".format(g_array.sum()))
+lib.fill_array(ALLOCATOR(allocate)) 
+print("array is: {}".format(g_array))
+print("and the total computed using numpy is {}".format(g_array.sum()))
