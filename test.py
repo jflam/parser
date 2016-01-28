@@ -1,8 +1,9 @@
-from ctypes import cdll
-from ctypes import CFUNCTYPE, c_int, c_uint32, c_size_t, POINTER, c_long, c_double, c_void_p, py_object
-import numpy as N
+from ctypes import cdll, cast
+from ctypes import CFUNCTYPE, POINTER
+from ctypes import c_int, c_uint32, c_size_t, c_long, c_double, c_void_p, py_object, c_char
+import numpy as numpy
 
-lib = cdll.LoadLibrary("c:/users/jflam/src/rust/parser/target/debug/parser.dll")
+lib = cdll.LoadLibrary("target/debug/parser.dll")
 
 def test_call_with_no_parameters_or_results():
     lib.hello()
@@ -44,7 +45,7 @@ def test_mutate_numpy_array():
     lib.mutate_numpy_array.restype = None
     lib.mutate_numpy_array.argtypes = (POINTER(c_double), c_size_t)
 
-    numpy_array = N.zeros(4)
+    numpy_array = numpy.zeros(4)
 
     lib.mutate_numpy_array(numpy_array.ctypes.data_as(POINTER(c_double)), len(numpy_array))
     assert numpy_array[0] == 2
@@ -78,15 +79,8 @@ def test_calling_python_to_allocate_numpy_array_and_mutating_in_rust():
 
     def allocate(length, ppResult):
         global g_array
-        g_array = N.zeros(length)
+        g_array = numpy.zeros(length)
         ppResult[0] = g_array.ctypes.data_as(POINTER(c_double))
-
-    # fill_array will call back into Python to the allocate() function defined 
-    # above to allocate a NumPy array of sufficient size and fill that array with 
-    # elements. The fill_array() function will return that array back to Python, 
-    # where it will be treated as a NumPy array and we can use the hardware 
-    # accelerated functions to compute against that array. This will be the basis 
-    # for the high-speed parser that I will implement later in Rust.
 
     ALLOCATOR = CFUNCTYPE(None, c_int, POINTER(POINTER(c_double)))
 
