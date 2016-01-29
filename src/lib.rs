@@ -5,7 +5,6 @@ use std::slice;
 use std::error::Error;
 use std::ffi::CStr;
 use std::fs::File;
-use std::io::BufReader;
 use std::io::prelude::*;
 use std::os::raw::c_char;
 use std::path::Path;
@@ -149,15 +148,11 @@ pub extern fn fill_array(f_ptr: Option<extern fn(x: i32, array_ptr: *mut *mut c_
 pub extern fn crc(cstr_path: *const c_char) {
     let str_path = cstr_to_string(cstr_path);
     let path = Path::new(&str_path);
-    let file = match File::open(path) {
+    let mut file = match File::open(path) {
         Err(why) => panic!("couldn't open {} because {}", path.display(), Error::description(&why)),
         Ok(file) => file,
     };
-    let reader = BufReader::new(file);
-
-    // Now read each byte
-    for byte in reader.bytes() {
-    }
-    
-    println!("hello, world");
+    let mut buffer = vec![];
+    file.read_to_end(&mut buffer).unwrap();
+    println!("The file is {} bytes long.", buffer.len());
 }
