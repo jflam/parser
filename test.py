@@ -5,15 +5,20 @@ import numpy as numpy
 
 lib = cdll.LoadLibrary("target/debug/parser.dll")
 
-def test_call_with_no_parameters_or_results():
+def test_call_with_no_parameters_or_results(capsys):
     lib.hello()
+    out, err = capsys.readouterr()
+    # It seems like capsys.readouterr fails to capture Rust output to stdout
+    # correctly
+    #assert out == "Hello, from Rust!"
 
 def test_call_with_primitive_type_returning_primitive_type():
     assert lib.square(4) == 16
 
-# TODO: figure out better tests when we have side-effects (return value?)
-def test_call_with_string_no_results():
+def test_call_with_string_no_results(capsys):
     lib.say_hello("John".encode("ascii"))
+    out, err = capsys.readouterr()
+    #assert out == "Hello, John"
 
 def test_call_python_callback_passing_primitive_type():
 
