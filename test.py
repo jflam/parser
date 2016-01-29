@@ -3,7 +3,23 @@ from ctypes import CFUNCTYPE, POINTER
 from ctypes import c_int, c_uint32, c_size_t, c_long, c_double, c_void_p, py_object, c_char
 import numpy as numpy
 
+# Import and init CFFI lib
+from cffi import FFI
+ffi = FFI()
+
 lib = cdll.LoadLibrary("target/debug/parser.dll")
+
+# Open the lib using cffi and define all the function parameters
+cffi_lib = ffi.dlopen("target/debug/parser.dll")
+ffi.cdef("void hello();")
+ffi.cdef("int square(int);")
+ffi.cdef("void say_hello(const char*);")
+
+def test_cffi_call_with_no_parameters_or_results(capsys):
+    cffi_lib.hello()
+    out, err = capsys.readouterr()
+    assert cffi_lib.square(4) == 16
+    cffi_lib.say_hello("John".encode("ascii"))
 
 def test_call_with_no_parameters_or_results(capsys):
     lib.hello()
