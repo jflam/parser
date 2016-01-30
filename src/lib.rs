@@ -450,17 +450,12 @@ fn compute_crc(buffer: &Vec<u8>) -> u16 {
         pos = pos + 8;
     }
 
-    println!("extra {} bytes", stream_length - pos);
-    println!("The CRC is {:x}", crc);
-
     while pos < stream_length {
         let next: u16 = reader.read_u8().unwrap() as u16;
         let index0 = ((crc ^ next) & 0xff) as usize;
         crc = TABLE0[index0] ^ (crc >> 8);
         pos = pos + 1;
     }
-    
-    println!("The CRC is {:x}", crc);
     crc
 }
 
