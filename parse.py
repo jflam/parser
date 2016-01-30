@@ -21,6 +21,9 @@ class Timer(object):
         if self.verbose:
             print('elapsed time: %f ms' % self.msecs)
 
+# Note that this file is a bit small to test the performance of Rust
+# on larger files, we see a much greater performance on the order of 
+# 600+MB/s 
 FILENAME = "test/2015-12-23-14-32-19.fit"
 
 file_length = os.stat(FILENAME).st_size
