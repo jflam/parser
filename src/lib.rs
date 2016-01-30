@@ -423,19 +423,8 @@ static TABLE7: [u16; 256] = [
     0xe20e, 0x2ecf, 0x3b8f, 0xf74e, 0x110f, 0xddce, 0xc88e, 0x044f, 
 ];
 
-#[no_mangle]
-pub extern fn crc(cstr_path: *const c_char) {
-    let str_path = cstr_to_string(cstr_path);
-    let path = Path::new(&str_path);
-    let mut file = match File::open(path) {
-        Err(why) => panic!("couldn't open {} because {}", path.display(), Error::description(&why)),
-        Ok(file) => file,
-    };
-    let mut buffer = vec![];
-    file.read_to_end(&mut buffer).unwrap();
+fn compute_crc(buffer: &Vec<u8>) -> u16 {
     let stream_length = buffer.len();
-    println!("The file is {} bytes long.", buffer.len());
-
     let mut reader = Cursor::new(buffer);
     let mut pos = 0;
     let mut crc: u16 = 0;
@@ -466,9 +455,57 @@ pub extern fn crc(cstr_path: *const c_char) {
 
     for i in 0..stream_length - pos {
         let next: u16 = reader.read_u8().unwrap() as u16;
-        let index0 = (next & 0xff) as usize;
+        let index0 = ((crc ^ next) & 0xff) as usize;
         crc = TABLE0[index0] ^ (crc >> 8);
     }
     
     println!("The CRC is {:x}", crc);
+    crc
+}
+
+// TODO: move this into a separate test setup layout
+static CRC_TEST_DATA: &'static [ &'static str ] = &[
+    "123456789",
+    "0123456789",
+    "01234567890",
+    "012345678901",
+    "0123456789012",
+    "01234567890123",
+    "012345678901234",
+    "0123456789012345",
+    "01234567890123456"
+];    
+
+static CRC_TEST_ANSWERS: [u16; 9] = [
+    0xbb3d,
+    0x443d,
+    0xc585,
+    0x77c5,
+    0x8636,
+    0x0346,
+    0x2583,
+    0xb6a4,
+    0xad37
+];
+
+#[test]
+fn test_compute_crc() {
+    for i in 0..9 {
+        let buffer = String::from(CRC_TEST_DATA[i]).into_bytes();
+        assert_eq!(CRC_TEST_ANSWERS[i], compute_crc(&buffer));
+    }
+}
+
+#[no_mangle]
+pub extern fn crc(cstr_path: *const c_char) {
+    let str_path = cstr_to_string(cstr_path);
+    let path = Path::new(&str_path);
+    let mut file = match File::open(path) {
+        Err(why) => panic!("couldn't open {} because {}", path.display(), Error::description(&why)),
+        Ok(file) => file,
+    };
+    let mut buffer = vec![];
+    file.read_to_end(&mut buffer).unwrap();
+    let crc = compute_crc(&buffer);
+    println!("CRC = {:x}", crc);
 }
