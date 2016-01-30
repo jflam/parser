@@ -463,33 +463,32 @@ fn compute_crc(buffer: &Vec<u8>) -> u16 {
     crc
 }
 
-// TODO: move this into a separate test setup layout
-static CRC_TEST_DATA: &'static [ &'static str ] = &[
-    "123456789",
-    "0123456789",
-    "01234567890",
-    "012345678901",
-    "0123456789012",
-    "01234567890123",
-    "012345678901234",
-    "0123456789012345",
-    "01234567890123456"
-];    
-
-static CRC_TEST_ANSWERS: [u16; 9] = [
-    0xbb3d,
-    0x443d,
-    0xc585,
-    0x77c5,
-    0x8636,
-    0x0346,
-    0x2583,
-    0xb6a4,
-    0xad37
-];
-
 #[test]
 fn test_compute_crc() {
+    static CRC_TEST_DATA: &'static [ &'static str ] = &[
+        "123456789",
+        "0123456789",
+        "01234567890",
+        "012345678901",
+        "0123456789012",
+        "01234567890123",
+        "012345678901234",
+        "0123456789012345",
+        "01234567890123456"
+    ];    
+
+    static CRC_TEST_ANSWERS: [u16; 9] = [
+        0xbb3d,
+        0x443d,
+        0xc585,
+        0x77c5,
+        0x8636,
+        0x0346,
+        0x2583,
+        0xb6a4,
+        0xad37
+    ];
+
     for i in 0..9 {
         let buffer = String::from(CRC_TEST_DATA[i]).into_bytes();
         assert_eq!(CRC_TEST_ANSWERS[i], compute_crc(&buffer));
