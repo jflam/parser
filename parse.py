@@ -2,6 +2,6 @@ from cffi import FFI
 ffi = FFI()
 
 lib = ffi.dlopen("target/debug/parser.dll")
-ffi.cdef("void crc(const char*);")
+ffi.cdef("void compute_file_crc(const char*);")
 
-lib.crc("test/2015-12-23-14-32-19.fit".encode("ascii"))
+lib.compute_file_crc("test/2015-12-23-14-32-19.fit".encode("ascii"))
